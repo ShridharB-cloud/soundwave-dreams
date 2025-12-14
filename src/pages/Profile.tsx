@@ -1,31 +1,46 @@
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Music, ListMusic, Heart, Settings } from "lucide-react";
-import { mockSongs, mockPlaylists, likedSongs } from "@/data/mockData";
+import { useSongs, usePlaylists, useLikedSongs } from "@/hooks/useMusic";
+
+import { authService } from "@/services/auth";
 
 const Profile = () => {
+  const { data: songs = [] } = useSongs();
+  const { data: playlists = [] } = usePlaylists();
+  const { data: likedSongs = [] } = useLikedSongs();
+  const user = authService.getCurrentUser();
+
   const stats = [
-    { label: "Songs Uploaded", value: mockSongs.length, icon: Music },
-    { label: "Playlists Created", value: mockPlaylists.length, icon: ListMusic },
+    { label: "Songs Uploaded", value: songs.length, icon: Music },
+    { label: "Playlists Created", value: playlists.length, icon: ListMusic },
     { label: "Liked Songs", value: likedSongs.length, icon: Heart },
   ];
 
+  if (!user) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full">
+            <h2 className="text-2xl font-bold mb-4">Please log in to view your profile</h2>
+            <Button onClick={() => window.location.href = '/login'}>Login</Button>
+        </div>
+    );
+  }
+
   return (
-    <MainLayout>
+    <>
       <div className="max-w-4xl mx-auto">
         {/* Profile Header */}
         <div className="flex items-center gap-6 mb-8 p-6 rounded-xl bg-card border border-border">
           <Avatar className="h-24 w-24">
-            <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop" />
-            <AvatarFallback className="text-2xl">SH</AvatarFallback>
+            <AvatarImage src={user.avatarUrl} />
+            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">Shridhar</h1>
-            <p className="text-muted-foreground">shridhar@example.com</p>
-            <p className="text-sm text-muted-foreground mt-1">Member since January 2024</p>
+            <h1 className="text-3xl font-bold text-foreground">{user.name}</h1>
+            <p className="text-muted-foreground">{user.email}</p>
+            <p className="text-sm text-muted-foreground mt-1">Member since {new Date().getFullYear()}</p>
           </div>
           <Button variant="secondary">
             <Settings className="h-4 w-4 mr-2" />
@@ -53,17 +68,17 @@ const Profile = () => {
           <div className="grid gap-4 max-w-md">
             <div className="space-y-2">
               <Label htmlFor="name">Display Name</Label>
-              <Input id="name" defaultValue="Shridhar" />
+              <Input id="name" defaultValue={user.name} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="shridhar@example.com" />
+              <Input id="email" type="email" defaultValue={user.email} disabled />
             </div>
             <Button className="w-fit">Save Changes</Button>
           </div>
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

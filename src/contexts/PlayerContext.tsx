@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Song, PlayerState } from "@/types/music";
+import { musicService } from "@/services/music";
 
 interface PlayerContextType extends PlayerState {
   playSong: (song: Song, queue?: Song[]) => void;
@@ -8,12 +10,13 @@ interface PlayerContextType extends PlayerState {
   prevSong: () => void;
   setVolume: (volume: number) => void;
   setProgress: (progress: number) => void;
-  toggleLike: (songId: string) => void;
+  toggleLike: (songId: string, currentLikedStatus: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<PlayerState>({
     currentSong: null,
     isPlaying: false,
@@ -80,18 +83,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, progress }));
   }, []);
 
-  const toggleLike = useCallback((songId: string) => {
-    setState((prev) => ({
+  const toggleLike = useCallback(async (songId: string, currentLikedStatus: boolean) => {
+    // Optimistic update
+    setState((prev) => {
+      // Logic for optimistic update logic remains similar but relies on the passed status
+      const newStatus = !currentLikedStatus;
+      
+      // Update backend
+      console.log(`[DEBUG] Toggling like for song ${songId}. Current state: ${currentLikedStatus} (sending ${!currentLikedStatus})`);
+      musicService.toggleLikeSong(songId, currentLikedStatus)
+        .then(() => {
+          console.log('[DEBUG] Like toggle successful, invalidating queries');
+          // Invalidate queries to refresh data across the app
+          queryClient.invalidateQueries({ queryKey: ['songs'] });
+        })
+        .catch(err => {
+          console.error("[DEBUG] Failed to toggle like:", err);
+          // Revert if failed (could implement revert logic here)
+        });
+      
+      return {
       ...prev,
       queue: prev.queue.map((song) =>
-        song.id === songId ? { ...song, liked: !song.liked } : song
+        song.id === songId ? { ...song, liked: newStatus } : song
       ),
       currentSong:
         prev.currentSong?.id === songId
-          ? { ...prev.currentSong, liked: !prev.currentSong.liked }
+          ? { ...prev.currentSong, liked: newStatus }
           : prev.currentSong,
-    }));
-  }, []);
+    }});
+  }, [queryClient]);
 
   return (
     <PlayerContext.Provider

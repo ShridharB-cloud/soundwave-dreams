@@ -63,7 +63,7 @@ export const uploadSong = async (req, res) => {
     res.status(201).json({ song });
   } catch (error) {
     console.error('Upload song error:', error);
-    res.status(500).json({ error: 'Failed to upload song' });
+    res.status(500).json({ error: error.message || 'Failed to upload song' });
   }
 };
 
@@ -182,9 +182,11 @@ export const deleteSong = async (req, res) => {
 export const likeSong = async (req, res) => {
   try {
     const songId = req.params.id;
+    console.log(`[DEBUG] Like request for song: ${songId} by user: ${req.user._id}`);
 
     const song = await Song.findById(songId);
     if (!song) {
+      console.log('[DEBUG] Song not found');
       return res.status(404).json({ error: 'Song not found' });
     }
 
@@ -195,6 +197,7 @@ export const likeSong = async (req, res) => {
     });
 
     if (existing) {
+      console.log('[DEBUG] Song already liked');
       return res.status(400).json({ error: 'Song already liked' });
     }
 
@@ -203,6 +206,7 @@ export const likeSong = async (req, res) => {
       song: songId
     });
 
+    console.log('[DEBUG] Song liked successfully');
     res.json({ message: 'Song liked', liked: true });
   } catch (error) {
     console.error('Like song error:', error);
@@ -213,15 +217,18 @@ export const likeSong = async (req, res) => {
 // Unlike song
 export const unlikeSong = async (req, res) => {
   try {
+    console.log(`[DEBUG] Unlike request for song: ${req.params.id} by user: ${req.user._id}`);
     const result = await LikedSong.findOneAndDelete({
       user: req.user._id,
       song: req.params.id
     });
 
     if (!result) {
+      console.log('[DEBUG] Like not found to delete');
       return res.status(404).json({ error: 'Like not found' });
     }
 
+    console.log('[DEBUG] Song unliked successfully');
     res.json({ message: 'Song unliked', liked: false });
   } catch (error) {
     console.error('Unlike song error:', error);
@@ -232,6 +239,7 @@ export const unlikeSong = async (req, res) => {
 // Get liked songs
 export const getLikedSongs = async (req, res) => {
   try {
+    console.log(`[DEBUG] Fetching liked songs for user: ${req.user._id}`);
     const { limit = 50, page = 1 } = req.query;
 
     const likedSongs = await LikedSong.find({ user: req.user._id })
@@ -242,6 +250,8 @@ export const getLikedSongs = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    console.log(`[DEBUG] Found ${likedSongs.length} raw liked songs entries`);
 
     const songs = likedSongs
       .filter(l => l.song) // Filter out deleted songs
@@ -250,6 +260,8 @@ export const getLikedSongs = async (req, res) => {
         liked: true,
         likedAt: l.createdAt
       }));
+    
+    console.log(`[DEBUG] Returning ${songs.length} valid songs`);
 
     const total = await LikedSong.countDocuments({ user: req.user._id });
 

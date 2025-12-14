@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { Play, Pause, SkipBack, SkipForward, Volume2, Heart, Shuffle, Repeat } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ function formatTime(seconds: number): string {
 }
 
 export function MusicPlayer() {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const {
     currentSong,
     isPlaying,
@@ -25,6 +27,48 @@ export function MusicPlayer() {
     toggleLike,
   } = usePlayer();
 
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch(error => {
+            console.error("Playback failed:", error);
+            // Handle auto-play policies or errors
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentSong]); // Re-run when song or play state changes
+
+  useEffect(() => {
+    if (audioRef.current) {
+        audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  // Handle seeking when progress is set manually (optional, usually tricky with state loops)
+  // For now, let's rely on the slider's onValueChange updating the audio time directly too?
+  // No, the context `setProgress` just updates state. We need a way to seek.
+  // Let's modify the Slider's onValueChange.
+
+  const handleSeek = (value: number[]) => {
+      if (audioRef.current) {
+          audioRef.current.currentTime = value[0];
+          setProgress(value[0]);
+      }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setProgress(audioRef.current.currentTime);
+    }
+  };
+
+  const handleEnded = () => {
+      nextSong();
+  };
+
+
   if (!currentSong) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 h-24 bg-cloudly-player border-t border-border flex items-center justify-center">
@@ -36,6 +80,12 @@ export function MusicPlayer() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 h-24 bg-cloudly-player border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.5)]">
       <div className="flex h-full items-center justify-between px-4">
+        <audio
+            ref={audioRef}
+            src={currentSong.audioUrl}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
+        />
         {/* Currently playing info */}
         <div className="flex items-center gap-4 w-64">
           <img
@@ -50,7 +100,7 @@ export function MusicPlayer() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => toggleLike(currentSong.id)}
+            onClick={() => toggleLike(currentSong.id, !!currentSong.liked)}
             className="shrink-0"
           >
             <Heart
@@ -92,9 +142,9 @@ export function MusicPlayer() {
             </span>
             <Slider
               value={[progress]}
-              max={duration}
+              max={duration || 100} // Fallback to avoid div by zero
               step={1}
-              onValueChange={(value) => setProgress(value[0])}
+              onValueChange={handleSeek}
               className="flex-1"
             />
             <span className="text-xs text-muted-foreground w-10">

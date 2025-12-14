@@ -60,7 +60,7 @@ export function SongCard({ song, queue }: SongCardProps) {
           )}
           onClick={(e) => {
             e.stopPropagation();
-            toggleLike(song.id);
+            toggleLike(song.id, !!song.liked);
           }}
         >
           <Heart

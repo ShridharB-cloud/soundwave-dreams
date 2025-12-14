@@ -1,0 +1,96 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { musicService } from '@/services/music';
+import { Song, Playlist } from '@/types/music';
+
+export const useSongs = () => {
+  return useQuery({
+    queryKey: ['songs'],
+    queryFn: musicService.getAllSongs,
+  });
+};
+
+export const usePlaylists = () => {
+  return useQuery({
+    queryKey: ['playlists'],
+    queryFn: musicService.getAllPlaylists,
+  });
+};
+
+export const useLikedSongs = () => {
+    return useQuery({
+        queryKey: ['songs', 'liked'],
+        queryFn: musicService.getLikedSongs
+    });
+};
+
+export const useRecentlyPlayed = () => {
+    return useQuery({
+        queryKey: ['songs', 'recent'],
+        queryFn: musicService.getRecentlyPlayed
+    });
+};
+
+export const useCreatePlaylist = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (newPlaylist: { name: string; description?: string; isPublic?: boolean }) =>
+      musicService.createPlaylist(newPlaylist.name, newPlaylist.description, newPlaylist.isPublic),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+};
+
+export const usePlaylist = (id: string) => {
+  return useQuery({
+    queryKey: ['playlist', id],
+    queryFn: () => musicService.getPlaylist(id),
+    enabled: !!id,
+  });
+};
+
+export const useUpdatePlaylist = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Playlist> }) =>
+      musicService.updatePlaylist(id, updates),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['playlist', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+};
+
+export const useDeletePlaylist = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => musicService.deletePlaylist(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+};
+
+export const useAddSongToPlaylist = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ playlistId, songId }: { playlistId: string; songId: string }) =>
+      musicService.addSongToPlaylist(playlistId, songId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['playlist', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+};
+
+export const useRemoveSongFromPlaylist = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ playlistId, songId }: { playlistId: string; songId: string }) =>
+      musicService.removeSongFromPlaylist(playlistId, songId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['playlist', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    },
+  });
+};

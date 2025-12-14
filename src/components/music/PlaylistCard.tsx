@@ -3,6 +3,7 @@ import { Playlist } from "@/types/music";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -11,16 +12,19 @@ interface PlaylistCardProps {
 export function PlaylistCard({ playlist }: PlaylistCardProps) {
   const { playSong } = usePlayer();
 
-  const handlePlay = () => {
+  const handlePlay = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation when clicking play
+    e.stopPropagation();
     if (playlist.songs.length > 0) {
       playSong(playlist.songs[0], playlist.songs);
     }
   };
 
   return (
-    <div
+    <Link
+      to={`/playlists/${playlist.id}`}
       className={cn(
-        "group relative flex-shrink-0 w-44 cursor-pointer rounded-lg bg-card p-3 transition-all duration-300",
+        "group relative flex-shrink-0 w-44 cursor-pointer rounded-lg bg-card p-3 transition-all duration-300 block",
         "hover:bg-cloudly-surface-hover hover:scale-[1.02]"
       )}
     >
@@ -56,6 +60,6 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
           {playlist.songCount} songs
         </p>
       </div>
-    </div>
+    </Link>
   );
 }

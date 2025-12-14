@@ -2,12 +2,30 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ContentRow } from "@/components/music/ContentRow";
 import { SongCard } from "@/components/music/SongCard";
 import { PlaylistCard } from "@/components/music/PlaylistCard";
-import { mockSongs, mockPlaylists, recentlyPlayed, likedSongs, newUploads } from "@/data/mockData";
+import { useSongs, usePlaylists, useLikedSongs, useRecentlyPlayed } from "@/hooks/useMusic";
 import heroBackground from "@/assets/hero-background.jpg";
+import { Song } from "@/types/music";
 
 const Index = () => {
+  const { data: songs = [], isLoading: isLoadingSongs } = useSongs();
+  const { data: playlists = [], isLoading: isLoadingPlaylists } = usePlaylists();
+  const { data: likedSongs = [], isLoading: isLoadingLiked } = useLikedSongs();
+  const { data: recentlyPlayed = [], isLoading: isLoadingRecent } = useRecentlyPlayed();
+
+  const newUploads = [...songs].reverse().slice(0, 6);
+
+  if (isLoadingSongs || isLoadingPlaylists || isLoadingLiked || isLoadingRecent) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
-    <MainLayout>
+    <>
       {/* Hero Section */}
       <section className="relative -mx-6 -mt-6 mb-8 h-80 overflow-hidden">
         <img
@@ -29,40 +47,48 @@ const Index = () => {
       </section>
 
       {/* Recently Played */}
-      <ContentRow title="Recently Played">
-        {recentlyPlayed.map((song) => (
-          <SongCard key={song.id} song={song} queue={recentlyPlayed} />
-        ))}
-      </ContentRow>
+      {recentlyPlayed.length > 0 && (
+        <ContentRow title="Recently Played">
+          {recentlyPlayed.map((song: Song) => (
+            <SongCard key={song.id} song={song} queue={recentlyPlayed} />
+          ))}
+        </ContentRow>
+      )}
 
       {/* Your Playlists */}
-      <ContentRow title="Your Playlists">
-        {mockPlaylists.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
-        ))}
-      </ContentRow>
+      {playlists.length > 0 && (
+        <ContentRow title="Your Playlists">
+          {playlists.map((playlist) => (
+            <PlaylistCard key={playlist.id} playlist={playlist} />
+          ))}
+        </ContentRow>
+      )}
 
       {/* Liked Songs */}
-      <ContentRow title="Liked Songs">
-        {likedSongs.map((song) => (
-          <SongCard key={song.id} song={song} queue={likedSongs} />
-        ))}
-      </ContentRow>
+      {likedSongs.length > 0 && (
+        <ContentRow title="Liked Songs">
+          {likedSongs.map((song: Song) => (
+            <SongCard key={song.id} song={song} queue={likedSongs} />
+          ))}
+        </ContentRow>
+      )}
 
       {/* New Uploads */}
-      <ContentRow title="New Uploads">
-        {newUploads.map((song) => (
-          <SongCard key={song.id} song={song} queue={newUploads} />
-        ))}
-      </ContentRow>
+      {newUploads.length > 0 && (
+        <ContentRow title="New Uploads">
+          {newUploads.map((song) => (
+            <SongCard key={song.id} song={song} queue={newUploads} />
+          ))}
+        </ContentRow>
+      )}
 
       {/* All Songs */}
       <ContentRow title="Browse All">
-        {mockSongs.map((song) => (
-          <SongCard key={song.id} song={song} queue={mockSongs} />
+        {songs.map((song) => (
+          <SongCard key={song.id} song={song} queue={songs} />
         ))}
       </ContentRow>
-    </MainLayout>
+    </>
   );
 };
 
