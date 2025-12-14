@@ -9,6 +9,21 @@ export const useSongs = () => {
   });
 };
 
+export const useSearchSongs = (query: string) => {
+  return useQuery({
+    queryKey: ['songs', 'search', query],
+    queryFn: () => musicService.searchSongs(query),
+    enabled: !!query,
+  });
+};
+
+export const useMySongs = () => {
+  return useQuery({
+    queryKey: ['songs', 'me'],
+    queryFn: musicService.getMySongs,
+  });
+};
+
 export const usePlaylists = () => {
   return useQuery({
     queryKey: ['playlists'],

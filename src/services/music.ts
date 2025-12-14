@@ -22,7 +22,12 @@ const transformPlaylist = (playlist: any): Playlist => {
 
 export const musicService = {
   getAllSongs: async (): Promise<Song[]> => {
-    const response = await api.get('/songs');
+    const response = await api.get('/songs?limit=1000'); // Temp fix for client-side lists
+    return response.data.songs.map(transformSong);
+  },
+
+  searchSongs: async (query: string): Promise<Song[]> => {
+    const response = await api.get(`/songs?search=${encodeURIComponent(query)}`);
     return response.data.songs.map(transformSong);
   },
 
@@ -67,6 +72,11 @@ export const musicService = {
 
   getRecentlyPlayed: async (): Promise<Song[]> => {
     const response = await api.get('/songs/recent');
+    return response.data.songs.map(transformSong);
+  },
+
+  getMySongs: async (): Promise<Song[]> => {
+    const response = await api.get('/songs?uploadedBy=me');
     return response.data.songs.map(transformSong);
   },
 

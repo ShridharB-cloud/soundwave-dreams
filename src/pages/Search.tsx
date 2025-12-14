@@ -1,21 +1,13 @@
 import { useSearchParams } from "react-router-dom";
-import { MainLayout } from "@/components/layout/MainLayout"; // Verify if layout wrapper is needed or if handled by App.tsx
+import { MainLayout } from "@/components/layout/MainLayout";
 import { SongCard } from "@/components/music/SongCard";
-import { useSongs } from "@/hooks/useMusic"; // We might need a specific useSearch hook or filter client-side for now
+import { useSearchSongs } from "@/hooks/useMusic";
 import { Song } from "@/types/music";
 
 const Search = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q")?.toLowerCase() || "";
-  const { data: songs = [], isLoading } = useSongs();
-
-  // Client-side filtering for now as backend search might not be ready or we can reuse getSongs
-  const filteredSongs = songs.filter(
-    (song: Song) =>
-      song.title.toLowerCase().includes(query) ||
-      song.artist.toLowerCase().includes(query) ||
-      song.album?.toLowerCase().includes(query)
-  );
+  const { data: filteredSongs = [], isLoading } = useSearchSongs(query);
 
   if (isLoading) {
     return (

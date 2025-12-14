@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Music, ListMusic, Heart, Settings } from "lucide-react";
-import { useSongs, usePlaylists, useLikedSongs } from "@/hooks/useMusic";
+import { usePlaylists, useLikedSongs, useMySongs } from "@/hooks/useMusic";
 
 import { authService } from "@/services/auth";
 
 const Profile = () => {
-  const { data: songs = [] } = useSongs();
+  const { data: songs = [] } = useMySongs();
   const { data: playlists = [] } = usePlaylists();
   const { data: likedSongs = [] } = useLikedSongs();
   const user = authService.getCurrentUser();
@@ -28,6 +28,8 @@ const Profile = () => {
     );
   }
 
+  const joinYear = user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
+
   return (
     <>
       <div className="max-w-4xl mx-auto">
@@ -40,7 +42,7 @@ const Profile = () => {
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-foreground">{user.name}</h1>
             <p className="text-muted-foreground">{user.email}</p>
-            <p className="text-sm text-muted-foreground mt-1">Member since {new Date().getFullYear()}</p>
+            <p className="text-sm text-muted-foreground mt-1">Member since {joinYear}</p>
           </div>
           <Button variant="secondary">
             <Settings className="h-4 w-4 mr-2" />
