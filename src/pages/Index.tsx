@@ -5,8 +5,10 @@ import { PlaylistCard } from "@/components/music/PlaylistCard";
 import { useSongs, usePlaylists, useLikedSongs, useRecentlyPlayed } from "@/hooks/useMusic";
 import heroBackground from "@/assets/hero-background.jpg";
 import { Song } from "@/types/music";
+import { authService } from "@/services/auth";
 
 const Index = () => {
+  const user = authService.getCurrentUser();
   const { data: songs = [], isLoading: isLoadingSongs } = useSongs();
   const { data: playlists = [], isLoading: isLoadingPlaylists } = usePlaylists();
   const { data: likedSongs = [], isLoading: isLoadingLiked } = useLikedSongs();
@@ -38,7 +40,7 @@ const Index = () => {
         
         <div className="relative z-10 flex h-full flex-col justify-end p-8">
           <h1 className="text-4xl font-bold text-foreground mb-2 animate-slide-up">
-            Welcome back, <span className="text-primary">Shridhar</span>
+            Welcome back, <span className="text-primary">{user?.name || 'Music Lover'}</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-lg animate-slide-up" style={{ animationDelay: "0.1s" }}>
             Your personal music streaming experience. Discover new sounds, create playlists, and enjoy your favorites.
