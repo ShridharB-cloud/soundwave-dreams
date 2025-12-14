@@ -73,12 +73,11 @@ export const getSongs = async (req, res) => {
     const { search, uploadedBy, limit = 50, page = 1 } = req.query;
     const query = {};
 
+    // Enforce privacy: only show user's own songs
+    query.uploadedBy = req.user._id;
+
     if (search) {
       query.$text = { $search: search };
-    }
-
-    if (uploadedBy === 'me') {
-      query.uploadedBy = req.user._id;
     }
 
     const songs = await Song.find(query)

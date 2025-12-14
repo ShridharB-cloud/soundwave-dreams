@@ -31,7 +31,14 @@ export const createPlaylist = async (req, res) => {
 // Get user's playlists
 export const getPlaylists = async (req, res) => {
   try {
-    const playlists = await Playlist.find({ createdBy: req.user._id })
+    // Enforce privacy: only show user's own playlists
+    // Note: If you want to allow searching public playlists later, you can modify this.
+    // For now, per user request, we restrict to "my" playlists only.
+    const query = { createdBy: req.user._id };
+    
+    // If search param exists? (Future proofing, but currently strictly my playlists)
+    
+    const playlists = await Playlist.find(query)
       .populate('createdBy', 'name avatarUrl')
       .sort({ createdAt: -1 });
 

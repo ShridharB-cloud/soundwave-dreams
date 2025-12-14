@@ -1,10 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SongCard } from "@/components/music/SongCard";
 import { PlaylistCard } from "@/components/music/PlaylistCard";
-import { useSongs, usePlaylists, useLikedSongs } from "@/hooks/useMusic";
+import { useSongs, usePlaylists, useLikedSongs, useMySongs } from "@/hooks/useMusic";
 
 const Library = () => {
-  const { data: songs = [], isLoading: isLoadingSongs } = useSongs();
+  const { data: songs = [], isLoading: isLoadingSongs } = useMySongs();
   const { data: playlists = [], isLoading: isLoadingPlaylists } = usePlaylists();
   const { data: likedSongs = [], isLoading: isLoadingLiked } = useLikedSongs();
 
