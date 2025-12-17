@@ -8,6 +8,7 @@ import { CloudlyOrb } from "../voice/CloudlyOrb";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { Visualizer } from "../music/Visualizer";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { LiquidEffect } from "@/components/ui/liquid-effect";
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -119,18 +120,22 @@ export function MusicPlayer() {
             className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8"
           >
             {/* Ambient Background Effect */}
+            {/* Ambient Background Effect */}
             <div className="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
-              <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] opacity-30 blur-[100px]"
-                style={{ background: `radial-gradient(circle, ${currentSong.coverUrl ? 'rgba(var(--primary-rgb), 0.5)' : '#444'} 0%, transparent 70%)` }}
-              />
-              {currentSong.coverUrl && (
-                <img
-                  src={currentSong.coverUrl}
-                  alt=""
-                  className="absolute top-0 left-0 w-full h-full object-cover opacity-20 blur-[80px] scale-150"
+              {currentSong.coverUrl ? (
+                <LiquidEffect
+                  imageUrl={currentSong.coverUrl}
+                  className="absolute inset-0 w-full h-full opacity-60 scale-110"
+                  intensity={0.4}
+                />
+              ) : (
+                <div
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] opacity-30 blur-[100px]"
+                  style={{ background: `radial-gradient(circle, #444 0%, transparent 70%)` }}
                 />
               )}
+              {/* Overlay for readability */}
+              <div className="absolute inset-0 bg-background/30 backdrop-blur-3xl" />
             </div>
 
             <Button

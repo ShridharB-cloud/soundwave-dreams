@@ -10,11 +10,15 @@ import { musicService } from "@/services/music";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { CloudlyOrb } from "@/components/voice/CloudlyOrb";
 import { AliveBackground } from "./AliveBackground";
+import { AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
+import { PageTransition } from "./PageTransition";
 
 export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const queryClient = useQueryClient();
   const { orbState, transcript, isListening } = useVoiceAssistant();
+  const location = useLocation();
 
   // Prefetch songs on mount for voice assistant
   useEffect(() => {
@@ -51,7 +55,11 @@ export function MainLayout() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto p-6 cloudly-scrollbar pb-32">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <PageTransition key={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </AnimatePresence>
         </main>
       </div>
 
