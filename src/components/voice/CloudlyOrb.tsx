@@ -10,9 +10,12 @@ interface CloudlyOrbProps {
     isListening?: boolean;
 }
 
-export function CloudlyOrb({ state, className, transcript, isListening }: CloudlyOrbProps) {
+export function CloudlyOrb({ state, className, transcript, isListening, onClick }: CloudlyOrbProps & { onClick?: () => void }) {
     return (
-        <div className={cn("relative flex items-center justify-center w-14 h-14 z-50", className)}>
+        <div
+            onClick={onClick}
+            className={cn("relative flex items-center justify-center w-14 h-14 z-50 cursor-pointer transition-transform active:scale-90", className)}
+        >
             {/* Core Orb */}
             <div
                 className={cn(

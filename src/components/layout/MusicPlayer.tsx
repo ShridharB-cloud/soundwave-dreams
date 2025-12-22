@@ -32,7 +32,7 @@ export function MusicPlayer() {
     toggleLike,
   } = usePlayer();
 
-  const { orbState } = useVoiceAssistant();
+  const { orbState, toggleRecording } = useVoiceAssistant();
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -332,7 +332,7 @@ export function MusicPlayer() {
 
         {/* Volume control */}
         <div className="flex items-center gap-4 w-64 justify-end">
-          <CloudlyOrb state={orbState} className="mr-2" />
+          <CloudlyOrb state={orbState} className="mr-2" onClick={toggleRecording} />
           <div className="flex items-center gap-2 group">
             <Volume2 className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
             <Slider

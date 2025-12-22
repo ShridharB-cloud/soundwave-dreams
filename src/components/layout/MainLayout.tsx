@@ -17,7 +17,7 @@ import { PageTransition } from "./PageTransition";
 export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { orbState, transcript, isListening } = useVoiceAssistant();
+  const { orbState, transcript, isListening, toggleRecording } = useVoiceAssistant();
   const location = useLocation();
 
   // Prefetch songs on mount for voice assistant

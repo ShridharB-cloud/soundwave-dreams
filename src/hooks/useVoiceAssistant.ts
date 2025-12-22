@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { Song } from '@/types/music';
 import { toast } from 'sonner';
 import { musicService } from '@/services/music';
 
-// Types for Web Speech API
+// Types for Web Speech API (for wake word only)
 interface IWindow extends Window {
     webkitSpeechRecognition: any;
     SpeechRecognition: any;
@@ -17,9 +17,13 @@ export function useVoiceAssistant() {
     const [orbState, setOrbState] = useState<OrbState>('idle');
     const [transcript, setTranscript] = useState('');
 
-    // We use a ref for the "Listening Session" to avoid closure stale state in the event handler
-    const isSessionActive = useRef(false);
-    const sessionTimeout = useRef<NodeJS.Timeout | null>(null);
+    // MediaRecorder refs
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+
+    // Wake Word refs
+    const recognitionRef = useRef<any>(null);
+    const isWakeWordListeningRef = useRef(false);
 
     const {
         currentSong,
@@ -35,218 +39,51 @@ export function useVoiceAssistant() {
     } = usePlayer();
 
     const queryClient = useQueryClient();
-    const recognitionRef = useRef<any>(null);
-    const isEnabledRef = useRef(false);
     const synth = window.speechSynthesis;
 
-    // --- Core Speech Logic ---
+    // --- Command Execution Logic ---
+    const handleCommand = useCallback(async (command: any) => {
+        console.log("Executing command:", command);
+        const action = command.action;
 
-    const startSession = () => {
-        isSessionActive.current = true;
-        setOrbState('listening');
-        speak("I'm here"); // feedback
-
-        // Timeout: If no command in 5 seconds, close session
-        if (sessionTimeout.current) clearTimeout(sessionTimeout.current);
-        sessionTimeout.current = setTimeout(() => {
-            endSession();
-        }, 5000);
-    };
-
-    const endSession = () => {
-        isSessionActive.current = false;
-        if (sessionTimeout.current) clearTimeout(sessionTimeout.current);
-        setOrbState('idle');
-    };
-
-    const speak = (text: string) => {
-        if (synth.speaking) synth.cancel();
-        setOrbState('speaking');
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.onend = () => {
-            // If we just said "I'm here", we are listening.
-            // If we said something else, we might be done or still listening?
-            // Logic in startSession handles state.
-            if (!isSessionActive.current) setOrbState('idle');
-            else setOrbState('listening');
-        };
-        synth.speak(utterance);
-    };
-
-    const processCommand = async (text: string) => {
-        // Clean text
-        const command = text.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
-        setTranscript(command);
-
-        // 1. WAKE WORD CHECK (Always active if not in session)
-        if (!isSessionActive.current) {
-            const wakeWords = ['hey cloudly', 'hey cloud', 'hi cloudly', 'okay cloudly', 'cloudly'];
-            if (wakeWords.some(w => command.endsWith(w) || command.includes(w))) {
-                console.log("Wake word detected!");
-                startSession();
-                return;
-            }
-            return; // Ignore other noise when not active
-        }
-
-        // 2. COMMAND PROCESSING (Only if Session is Active)
-        if (isSessionActive.current) {
-            console.log(`Processing command in session: ${command}`);
-
-            // Reset timeout since we heard something
-            if (sessionTimeout.current) clearTimeout(sessionTimeout.current);
-            sessionTimeout.current = setTimeout(endSession, 5000);
-
-            let executed = false;
-
-            // Simple Keywords
-            if (['stop', 'pause', 'quiet'].some(w => command.includes(w))) {
+        switch (action) {
+            case 'play':
+                if (command.song) {
+                    await findAndPlaySong(command.song);
+                } else {
+                    if (!isPlaying) togglePlay();
+                    speak("Resuming music");
+                }
+                break;
+            case 'pause':
                 if (isPlaying) togglePlay();
-                toast.success("Paused");
-                executed = true;
-            }
-            else if (['play', 'resume', 'start'].some(w => command === w || command.includes('start music'))) {
-                // strict 'play' might be 'play song...' so play single word needs strict check
-                if (!isPlaying) togglePlay();
-                toast.success("Resumed");
-                executed = true;
-            }
-            else if (['next', 'skip'].some(w => command.includes(w))) {
+                speak("Paused");
+                break;
+            case 'next':
                 nextSong();
-                toast.success("Next Song");
-                executed = true;
-            }
-            else if (['previous', 'back'].some(w => command.includes(w))) {
+                speak("Skipping");
+                break;
+            case 'prev':
                 prevSong();
-                executed = true;
-            }
-            else if (command.includes('shuffle')) {
+                speak("Previous song");
+                break;
+            case 'volume':
+                if (command.value) {
+                    setVolume(Math.min(1, Math.max(0, command.value / 100)));
+                    speak(`Volume set to ${command.value}%`);
+                }
+                break;
+            case 'shuffle':
                 shuffleQueue();
-                speak("Shuffling");
-                executed = true;
-            }
-            else if (['volume up', 'louder'].some(w => command.includes(w))) {
-                setVolume(Math.min(1, (volume || 0.7) + 0.2));
-                executed = true;
-            }
-            else if (['volume down', 'quieter'].some(w => command.includes(w))) {
-                setVolume(Math.max(0, (volume || 0.7) - 0.2));
-                executed = true;
-            }
-            else if (command.includes('like')) {
-                if (currentSong) toggleLike(currentSong.id, !currentSong.liked);
-                speak("Liked");
-                executed = true;
-            }
-            // Smart Search "Play [Song]"
-            else if (command.startsWith('play ')) {
-                const query = command.replace('play', '').trim();
-                if (query) {
-                    await findAndPlaySong(query);
-                    executed = true;
-                }
-            }
-            // Moods
-            else if (['calm', 'sad', 'happy', 'focus'].some(m => command.includes(m))) {
-                // trigger mood search
-                const mood = ['calm', 'sad', 'happy', 'focus'].find(m => command.includes(m));
-                findAndPlaySong(mood || 'lofi');
-                executed = true;
-            }
-
-            if (executed) {
-                setOrbState('active'); // Pulse
-                setTimeout(endSession, 1000); // Close session after successful command
-            }
+                speak("Shuffling your queue");
+                break;
+            case 'unknown':
+                speak(command.message || "I didn't quite get that.");
+                break;
+            default:
+                console.warn("Unknown action:", action);
         }
-    };
-
-
-    // --- Setup & Lifecycle ---
-
-    // Mount effect to start voice
-    useEffect(() => {
-        const { webkitSpeechRecognition, SpeechRecognition } = window as unknown as IWindow;
-        const Recognition = SpeechRecognition || webkitSpeechRecognition;
-
-        if (!Recognition) {
-            console.warn('Speech recognition not supported.');
-            return;
-        }
-
-        const recognition = new Recognition();
-        recognition.continuous = true;
-        recognition.interimResults = true; // Still need true for fast wake word
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-            console.log('🎤 Cloudly listening...');
-            isEnabledRef.current = true;
-        };
-
-        recognition.onend = () => {
-            if (isEnabledRef.current) {
-                console.log('↻ Voice restarted');
-                setTimeout(() => { try { recognition.start(); } catch (e) { } }, 500);
-            } else {
-                setOrbState('idle');
-            }
-        };
-
-        recognition.onresult = (event: any) => {
-            const results = Array.from(event.results);
-            const lastResult: any = results[results.length - 1];
-            const text = lastResult[0].transcript.trim().toLowerCase();
-            const isFinal = lastResult.isFinal;
-
-            // If final, standard process
-            if (isFinal) {
-                processCommand(text);
-            }
-            // If interim, check specifically for wake word to catch it early
-            else {
-                if (!isSessionActive.current) {
-                    // Fast wake word detection
-                    if (text.endsWith('hey cloudly') || text.includes('hey cloud') || text.includes('hi cloud')) {
-                        startSession();
-                    }
-                }
-            }
-        };
-
-        recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech') return; // Ignore normal silence
-            console.error('Speech error:', event.error);
-        };
-
-        recognitionRef.current = recognition;
-        try {
-            recognition.start();
-        } catch (e) {
-            console.log('Voice waiting for interaction...');
-        }
-
-        return () => {
-            isEnabledRef.current = false;
-            recognition.stop();
-            if (sessionTimeout.current) clearTimeout(sessionTimeout.current);
-        };
-    }, []);
-
-    // Sync Library on Mount (Scans for "pre-added" songs)
-    useEffect(() => {
-        const sync = async () => {
-            try {
-                const s = await musicService.getAllSongs();
-                queryClient.setQueryData(['songs'], s);
-                console.log(`📚 Cloudly scanned ${s.length} songs from library.`);
-            } catch (e) {
-                console.error("Failed to scan library for voice", e);
-            }
-        };
-        sync();
-    }, [queryClient]);
+    }, [isPlaying, togglePlay, nextSong, prevSong, setVolume, shuffleQueue]);
 
     const findAndPlaySong = async (query: string) => {
         toast.info(`Searching: ${query}`);
@@ -258,45 +95,181 @@ export function useVoiceAssistant() {
 
         // Force fetch if empty
         if (!songs?.length) {
-            console.log("Empty library cache, force fetching...");
             try {
                 songs = await musicService.getAllSongs();
                 queryClient.setQueryData(['songs'], songs);
             } catch (e) {
-                console.error("Fetch failed", e);
                 speak("I can't reach the music library right now.");
                 return;
             }
         }
 
-        if (!songs.length) { speak("I don't see any songs in your library."); return; }
-
         const match = songs.find(s =>
-            s.title.toLowerCase().includes(query) ||
-            s.artist.toLowerCase().includes(query) ||
-            s.album.toLowerCase().includes(query)
+            s.title.toLowerCase().includes(query.toLowerCase()) ||
+            s.artist.toLowerCase().includes(query.toLowerCase())
         );
 
         if (match) {
-            console.log(`Found song: ${match.title}`);
             playSong(match);
-            toast.success(`Playing ${match.title}`);
+            speak(`Playing ${match.title}`);
         } else {
-            // Fallback for Moods (Random pick from list if keyword matches nothing)
-            if (['calm', 'sad', 'happy', 'focus'].some(m => query.includes(m))) {
-                speak(`Playing some ${query} music`);
-                // Just pick a random one for now as "mood"
-                const random = songs[Math.floor(Math.random() * songs.length)];
-                playSong(random);
-            } else {
-                speak(`I couldn't find ${query}`);
+            speak(`I couldn't find ${query}`);
+        }
+    };
+
+    // --- Audio Recording & Backend ---
+    const startRecording = async () => {
+        try {
+            // Stop wake word listener temporarily
+            if (recognitionRef.current) recognitionRef.current.stop();
+            isWakeWordListeningRef.current = false;
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                setOrbState('processing');
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                await sendToBackend(audioBlob);
+
+                // Cleanup stream
+                stream.getTracks().forEach(track => track.stop());
+
+                // Restart wake word listener logic handles itself in state transition usually, 
+                // but we explicitly restart here after processing
+                if (recognitionRef.current) {
+                    try { recognitionRef.current.start(); isWakeWordListeningRef.current = true; } catch (e) { }
+                }
+                setOrbState('idle');
+            };
+
+            mediaRecorder.start();
+            setOrbState('listening');
+            setTranscript("Listening...");
+
+            // Record for 4 seconds then stop automatically
+            setTimeout(() => {
+                if (mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, 4000);
+
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            setOrbState('idle');
+            toast.error("Microphone access denied");
+        }
+    };
+
+    const sendToBackend = async (audioBlob: Blob) => {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'command.webm');
+
+        try {
+            const response = await fetch('http://localhost:3001/api/voice/command', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Backend processing failed');
+
+            const data = await response.json();
+            console.log("Voice Response:", data);
+
+            if (data.transcript) setTranscript(data.transcript);
+            if (data.command) {
+                setOrbState('active');
+                await handleCommand(data.command);
             }
+        } catch (error) {
+            console.error("Voice command error:", error);
+            speak("Sorry, something went wrong.");
+        }
+    };
+
+    const speak = (text: string) => {
+        if (synth.speaking) synth.cancel();
+        setOrbState('speaking');
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
+            setOrbState('idle');
+        };
+        synth.speak(utterance);
+    };
+
+    // --- Wake Word Logic (Web Speech API) ---
+    useEffect(() => {
+        const { webkitSpeechRecognition, SpeechRecognition } = window as unknown as IWindow;
+        const Recognition = SpeechRecognition || webkitSpeechRecognition;
+
+        if (!Recognition) return;
+
+        const recognition = new Recognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+            const results = Array.from(event.results);
+            const lastResult: any = results[results.length - 1];
+            const text = lastResult[0].transcript.trim().toLowerCase();
+
+            // Simple wake word check on interim results for speed
+            if (orbState === 'idle' && (text.endsWith('hey cloudly') || text.includes('hey cloud') || text.includes('cloudly'))) {
+                console.log("Wake word detected!");
+                startRecording();
+            }
+        };
+
+        recognition.onend = () => {
+            // Use a timeout to restart only if we intend to imply continuous listening
+            // but avoid conflict if we are recording
+            if (orbState === 'idle' && !mediaRecorderRef.current) {
+                setTimeout(() => {
+                    try { recognition.start(); } catch (e) { }
+                }, 1000);
+            }
+        };
+
+        recognitionRef.current = recognition;
+        try {
+            recognition.start();
+            isWakeWordListeningRef.current = true;
+        } catch (e) {
+            console.warn("Wake word listener failed to start", e);
+        }
+
+        return () => {
+            recognition.stop();
+        };
+    }, [orbState]); // Dependency on orbState to avoid restarting during recording
+
+    const toggleRecording = () => {
+        console.log("🔴 [DEBUG] Orb Clicked! Current State:", orbState);
+        if (orbState === 'listening') {
+            // If manual stop, we stop the recorder
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                console.log("🔴 [DEBUG] Stopping recording manually...");
+                mediaRecorderRef.current.stop();
+            }
+        } else if (orbState === 'idle' || orbState === 'active') {
+            console.log("🔴 [DEBUG] Starting recording manually...");
+            startRecording();
         }
     };
 
     return {
         orbState,
         transcript,
-        isListening: isEnabledRef.current
+        isListening: orbState === 'listening',
+        toggleRecording
     };
 }

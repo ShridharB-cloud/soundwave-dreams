@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.routes.js';
 import songRoutes from './routes/song.routes.js';
 import playlistRoutes from './routes/playlist.routes.js';
 import userRoutes from './routes/user.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/songs', songRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/voice', voiceRoutes);
 
 // 404 handler
 app.use((req, res) => {
