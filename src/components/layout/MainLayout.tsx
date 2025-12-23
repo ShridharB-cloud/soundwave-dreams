@@ -5,10 +5,7 @@ import { useState, useEffect } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useQueryClient } from "@tanstack/react-query";
-import { musicService } from "@/services/music";
-import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
-import { CloudlyOrb } from "@/components/voice/CloudlyOrb";
+
 import { AliveBackground } from "./AliveBackground";
 import { AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
@@ -17,22 +14,7 @@ import { Header } from "./Header";
 
 export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const { orbState, transcript, isListening, toggleRecording } = useVoiceAssistant();
   const location = useLocation();
-
-  // Prefetch songs on mount for voice assistant
-  useEffect(() => {
-    const prefetchSongs = async () => {
-      try {
-        const songs = await musicService.getAllSongs();
-        queryClient.setQueryData(['songs'], songs);
-      } catch (e) {
-        console.error("Failed to prefetch songs for voice", e);
-      }
-    };
-    prefetchSongs();
-  }, [queryClient]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-transparent relative selection:bg-primary/20">
@@ -58,7 +40,7 @@ export function MainLayout() {
         <Header />
         <main className="flex-1 overflow-y-auto p-6 cloudly-scrollbar pb-32">
           <AnimatePresence mode="wait">
-            <PageTransition key={location.pathname}>
+            <PageTransition key={location.pathname || "home"}>
               <Outlet />
             </PageTransition>
           </AnimatePresence>

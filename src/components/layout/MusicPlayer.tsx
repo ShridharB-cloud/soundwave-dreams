@@ -4,8 +4,6 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
-import { CloudlyOrb } from "../voice/CloudlyOrb";
-import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { Visualizer } from "../music/Visualizer";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 
@@ -34,7 +32,6 @@ export function MusicPlayer() {
     toggleLike,
   } = usePlayer();
 
-  const { orbState, toggleRecording } = useVoiceAssistant();
   const [isExpanded, setIsExpanded] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string>("");
 
@@ -347,7 +344,6 @@ export function MusicPlayer() {
 
         {/* Volume control */}
         <div className="flex items-center gap-4 w-64 justify-end">
-          <CloudlyOrb state={orbState} className="mr-2" onClick={toggleRecording} />
           <div className="flex items-center gap-2 group">
             <Volume2 className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
             <Slider
